@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Movie Night</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  {{template "style"}}
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <h1>🍿 Movie Night</h1>
+      <div>
+        <span class="muted">hi, {{.Username}}</span>
+        <form class="inline" method="post" action="/logout">
+          <button type="submit" class="linkish">sign out</button>
+        </form>
+      </div>
+    </header>
+
+    <form class="add-form" hx-post="/movies" hx-target="#movie-board"
+          hx-on::after-request="if (event.detail.successful) this.reset()">
+      <input type="text" name="title" placeholder="Suggest a movie…" maxlength="200" required>
+      <button type="submit" class="primary">Add</button>
+    </form>
+    <p class="muted">Everyone gets one vote — click again to remove it, or vote elsewhere to move it.</p>
+
+    <div id="movie-board">
+      {{template "movie-board" .}}
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,59 @@
+{{define "style"}}
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #14161f;
+    color: #e8e9ed;
+    min-height: 100vh;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 2rem 1rem; }
+  h1 { margin: 0; font-size: 1.5rem; }
+  h2 { font-size: 1.05rem; color: #aab; margin: 2rem 0 0.75rem; }
+  header.topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .muted { color: #8a8fa3; font-size: 0.85rem; }
+  form.inline { display: inline; }
+  input[type="text"], input[type="password"] {
+    background: #1e2130; border: 1px solid #33374a; color: inherit;
+    border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 1rem; width: 100%;
+  }
+  input:focus { outline: 2px solid #5b6cff; border-color: transparent; }
+  button {
+    background: #2a2e40; color: inherit; border: 1px solid #3c415a;
+    border-radius: 8px; padding: 0.45rem 0.9rem; font-size: 0.9rem; cursor: pointer;
+  }
+  button:hover { background: #343952; }
+  button.primary { background: #4353d9; border-color: #4353d9; }
+  button.primary:hover { background: #5262e8; }
+  button.voted { background: #1d7a4c; border-color: #1d7a4c; }
+  button.linkish { background: none; border: none; color: #8a8fa3; padding: 0.25rem; }
+  button.linkish:hover { color: #e8e9ed; text-decoration: underline; }
+  .add-form { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+  ul.movies { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  ul.movies li {
+    background: #1b1e2b; border: 1px solid #272b3d; border-radius: 10px;
+    padding: 0.8rem 1rem; display: flex; justify-content: space-between;
+    align-items: center; gap: 1rem; flex-wrap: wrap;
+  }
+  .actions { display: flex; align-items: center; gap: 0.6rem; }
+  .count { font-variant-numeric: tabular-nums; color: #aab; font-size: 0.9rem; }
+  ul.watched { list-style: none; padding: 0; margin: 0; }
+  ul.watched li { padding: 0.35rem 0; border-bottom: 1px solid #22263500; color: #aab; }
+  .card {
+    background: #1b1e2b; border: 1px solid #272b3d; border-radius: 12px;
+    padding: 1.5rem; margin-top: 1rem;
+  }
+  .card h2 { margin-top: 0; }
+  .card label { display: block; margin: 0.75rem 0 0.25rem; font-size: 0.9rem; color: #aab; }
+  .card button { margin-top: 1rem; width: 100%; padding: 0.6rem; }
+  .error {
+    background: #3a1f26; border: 1px solid #6e2f3c; color: #ff9aa8;
+    border-radius: 8px; padding: 0.6rem 0.8rem; margin-top: 1rem; font-size: 0.9rem;
+  }
+</style>
+{{end}}

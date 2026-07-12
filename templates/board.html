@@ -1,0 +1,39 @@
+{{define "movie-board"}}
+<section>
+  <h2>Up for a vote</h2>
+  {{if .Movies}}
+  <ul class="movies">
+    {{range .Movies}}
+    <li>
+      <div class="info">
+        <strong>{{.Title}}</strong>
+        <div class="muted">added by {{.AddedBy}}</div>
+      </div>
+      <div class="actions">
+        <span class="count">{{.Votes}} vote{{if ne .Votes 1}}s{{end}}</span>
+        <button hx-post="/vote/{{.ID}}" hx-target="#movie-board"
+                class="{{if .VotedByMe}}voted{{end}}">
+          {{if .VotedByMe}}✓ Voted{{else}}Vote{{end}}
+        </button>
+        <button hx-post="/watched/{{.ID}}" hx-target="#movie-board"
+                hx-confirm="Mark “{{.Title}}” as watched? This clears everyone's votes for the next round.">
+          Watched
+        </button>
+      </div>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="muted">No movies in the queue — suggest one above!</p>
+  {{end}}
+
+  {{if .Watched}}
+  <h2>Recently watched</h2>
+  <ul class="watched">
+    {{range .Watched}}
+    <li>{{.Title}} <span class="muted">— {{.WatchedAt.Format "Jan 2, 2006"}}</span></li>
+    {{end}}
+  </ul>
+  {{end}}
+</section>
+{{end}}
