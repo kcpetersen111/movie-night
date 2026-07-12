@@ -183,6 +183,7 @@ type MovieRow struct {
 	AddedBy   string
 	Votes     int
 	VotedByMe bool
+	AddedAt   time.Time
 }
 
 type WatchedRow struct {
@@ -236,7 +237,8 @@ func (s *Store) ListMovies(ctx context.Context, theaterID, currentUserID int) ([
 	rows, err := s.pool.Query(ctx,
 		`SELECT m.id, m.title, m.year, m.poster, u.username,
 		        count(v.user_id) AS votes,
-		        coalesce(bool_or(v.user_id = $1), false) AS voted_by_me
+		        coalesce(bool_or(v.user_id = $1), false) AS voted_by_me,
+		        m.created_at
 		 FROM movies m
 		 JOIN users u ON u.id = m.added_by
 		 LEFT JOIN votes v ON v.movie_id = m.id AND v.theater_id = m.theater_id
@@ -251,7 +253,7 @@ func (s *Store) ListMovies(ctx context.Context, theaterID, currentUserID int) ([
 	var movies []MovieRow
 	for rows.Next() {
 		var m MovieRow
-		if err := rows.Scan(&m.ID, &m.Title, &m.Year, &m.Poster, &m.AddedBy, &m.Votes, &m.VotedByMe); err != nil {
+		if err := rows.Scan(&m.ID, &m.Title, &m.Year, &m.Poster, &m.AddedBy, &m.Votes, &m.VotedByMe, &m.AddedAt); err != nil {
 			return nil, err
 		}
 		movies = append(movies, m)
