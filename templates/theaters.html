@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Movie Night — Theaters</title>
+  {{template "style"}}
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <h1>🍿 Movie Night</h1>
+      <form class="inline" method="post" action="/logout">
+        <button type="submit" class="linkish">sign out</button>
+      </form>
+    </header>
+
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    <div class="card">
+      <h2>Your theaters</h2>
+      {{if .Theaters}}
+      <ul class="watched">
+        {{range .Theaters}}
+        <li>
+          <a href="/t/{{.ID}}/">{{.Name}}</a>
+          <span class="muted">invite code: {{.InviteCode}}</span>
+        </li>
+        {{end}}
+      </ul>
+      {{else}}
+      <p class="muted">You're not in any theaters yet — create one or join with an invite code below.</p>
+      {{end}}
+    </div>
+
+    <div class="card">
+      <h2>Create a theater</h2>
+      <form method="post" action="/theaters">
+        <label for="theater-name">Name</label>
+        <input id="theater-name" type="text" name="name" maxlength="100" required autofocus>
+        <button type="submit" class="primary">Create theater</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Join with an invite code</h2>
+      <form method="post" action="/theaters/join">
+        <label for="theater-code">Invite code</label>
+        <input id="theater-code" type="text" name="code" maxlength="50" required>
+        <button type="submit">Join theater</button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

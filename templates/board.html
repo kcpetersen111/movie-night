@@ -18,16 +18,14 @@
       </div>
       <div class="actions">
         <span class="count">{{.Votes}} vote{{if ne .Votes 1}}s{{end}}</span>
-        {{if $.LoggedIn}}
-        <button hx-post="/vote/{{.ID}}" hx-target="#movie-board"
+        <button hx-post="/t/{{$.TheaterID}}/vote/{{.ID}}" hx-target="#movie-board"
                 class="{{if .VotedByMe}}voted{{end}}">
           {{if .VotedByMe}}✓ Voted{{else}}Vote{{end}}
         </button>
-        <button hx-post="/watched/{{.ID}}" hx-target="#movie-board"
+        <button hx-post="/t/{{$.TheaterID}}/watched/{{.ID}}" hx-target="#movie-board"
                 hx-confirm="Mark “{{.Title}}” as watched? This clears everyone's votes for the next round.">
           Watched
         </button>
-        {{end}}
       </div>
     </li>
     {{end}}

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -25,6 +26,7 @@ type App struct {
 type ctxKey string
 
 const userKey ctxKey = "user"
+const theaterKey ctxKey = "theater"
 
 const sessionCookie = "movie_night_session"
 
@@ -32,11 +34,18 @@ type loginData struct {
 	Error string
 }
 
+type theatersData struct {
+	Theaters []Theater
+	Error    string
+}
+
 type pageData struct {
-	LoggedIn bool
-	Username string
-	Movies   []MovieRow
-	Watched  []WatchedRow
+	LoggedIn    bool
+	Username    string
+	TheaterID   int
+	TheaterName string
+	Movies      []MovieRow
+	Watched     []WatchedRow
 }
 
 // --- auth ---
@@ -60,21 +69,47 @@ func (a *App) requireUser(next func(http.ResponseWriter, *http.Request)) http.Ha
 	})
 }
 
-// withUser attaches the session user if present but never blocks the request.
-func (a *App) withUser(next func(http.ResponseWriter, *http.Request)) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if cookie, err := r.Cookie(sessionCookie); err == nil {
-			if user, err := a.store.GetSessionUser(r.Context(), cookie.Value); err == nil {
-				r = r.WithContext(context.WithValue(r.Context(), userKey, user))
-			}
+// requireTheaterMember reads {theaterID} from the path and confirms the
+// current user belongs to it, stashing the Theater in context. Must be
+// wrapped by requireUser so currentUser(r) is already populated.
+func (a *App) requireTheaterMember(next func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		theaterID, err := strconv.Atoi(r.PathValue("theaterID"))
+		if err != nil {
+			http.Error(w, "bad theater id", http.StatusBadRequest)
+			return
 		}
-		next(w, r)
-	})
+		ok, err := a.store.IsMember(r.Context(), theaterID, currentUser(r).ID)
+		if err != nil {
+			a.serverError(w, err)
+			return
+		}
+		if !ok {
+			if r.Header.Get("HX-Request") == "true" {
+				w.Header().Set("HX-Redirect", "/theaters")
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			http.Redirect(w, r, "/theaters", http.StatusSeeOther)
+			return
+		}
+		theater, err := a.store.GetTheater(r.Context(), theaterID)
+		if err != nil {
+			a.serverError(w, err)
+			return
+		}
+		next(w, r.WithContext(context.WithValue(r.Context(), theaterKey, theater)))
+	}
 }
 
 func currentUser(r *http.Request) User {
 	u, _ := r.Context().Value(userKey).(User)
 	return u
+}
+
+func currentTheater(r *http.Request) Theater {
+	t, _ := r.Context().Value(theaterKey).(Theater)
+	return t
 }
 
 func (a *App) loginPage(w http.ResponseWriter, r *http.Request) {
@@ -168,6 +203,58 @@ func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 
 // --- pages ---
 
+// rootRedirect sends a logged-in user straight to their theater if they
+// belong to exactly one, otherwise to the theater picker.
+func (a *App) rootRedirect(w http.ResponseWriter, r *http.Request) {
+	theaters, err := a.store.ListUserTheaters(r.Context(), currentUser(r).ID)
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+	if len(theaters) == 1 {
+		http.Redirect(w, r, fmt.Sprintf("/t/%d/", theaters[0].ID), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/theaters", http.StatusSeeOther)
+}
+
+func (a *App) theatersPage(w http.ResponseWriter, r *http.Request) {
+	theaters, err := a.store.ListUserTheaters(r.Context(), currentUser(r).ID)
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+	a.render(w, "theaters.html", theatersData{Theaters: theaters})
+}
+
+func (a *App) createTheater(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" || len(name) > 100 {
+		theaters, _ := a.store.ListUserTheaters(r.Context(), currentUser(r).ID)
+		w.WriteHeader(http.StatusBadRequest)
+		a.render(w, "theaters.html", theatersData{Theaters: theaters, Error: "Theater name must be 1-100 characters."})
+		return
+	}
+	theater, err := a.store.CreateTheater(r.Context(), name, currentUser(r).ID)
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/t/%d/", theater.ID), http.StatusSeeOther)
+}
+
+func (a *App) joinTheater(w http.ResponseWriter, r *http.Request) {
+	code := strings.TrimSpace(strings.ToLower(r.FormValue("code")))
+	theater, err := a.store.JoinTheaterByCode(r.Context(), code, currentUser(r).ID)
+	if err != nil {
+		theaters, _ := a.store.ListUserTheaters(r.Context(), currentUser(r).ID)
+		w.WriteHeader(http.StatusNotFound)
+		a.render(w, "theaters.html", theatersData{Theaters: theaters, Error: "That invite code doesn't match any theater."})
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/t/%d/", theater.ID), http.StatusSeeOther)
+}
+
 func (a *App) index(w http.ResponseWriter, r *http.Request) {
 	data, err := a.boardData(r)
 	if err != nil {
@@ -182,7 +269,7 @@ func (a *App) addMovie(w http.ResponseWriter, r *http.Request) {
 	year := strings.TrimSpace(r.FormValue("year"))
 	poster := strings.TrimSpace(r.FormValue("poster"))
 	if title != "" && len(title) <= 200 && len(year) <= 20 && len(poster) <= 500 {
-		if err := a.store.AddMovie(r.Context(), title, year, poster, currentUser(r).ID); err != nil {
+		if err := a.store.AddMovie(r.Context(), currentTheater(r).ID, title, year, poster, currentUser(r).ID); err != nil {
 			a.serverError(w, err)
 			return
 		}
@@ -240,7 +327,7 @@ func (a *App) vote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad movie id", http.StatusBadRequest)
 		return
 	}
-	if err := a.store.ToggleVote(r.Context(), currentUser(r).ID, movieID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err := a.store.ToggleVote(r.Context(), currentTheater(r).ID, currentUser(r).ID, movieID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		a.serverError(w, err)
 		return
 	}
@@ -253,7 +340,7 @@ func (a *App) markWatched(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad movie id", http.StatusBadRequest)
 		return
 	}
-	if err := a.store.MarkWatched(r.Context(), movieID); err != nil {
+	if err := a.store.MarkWatched(r.Context(), currentTheater(r).ID, movieID); err != nil {
 		a.serverError(w, err)
 		return
 	}
@@ -264,15 +351,23 @@ func (a *App) markWatched(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) boardData(r *http.Request) (pageData, error) {
 	user := currentUser(r)
-	movies, err := a.store.ListMovies(r.Context(), user.ID)
+	theater := currentTheater(r)
+	movies, err := a.store.ListMovies(r.Context(), theater.ID, user.ID)
 	if err != nil {
 		return pageData{}, err
 	}
-	watched, err := a.store.ListWatched(r.Context())
+	watched, err := a.store.ListWatched(r.Context(), theater.ID)
 	if err != nil {
 		return pageData{}, err
 	}
-	return pageData{LoggedIn: user.ID != 0, Username: user.Username, Movies: movies, Watched: watched}, nil
+	return pageData{
+		LoggedIn:    user.ID != 0,
+		Username:    user.Username,
+		TheaterID:   theater.ID,
+		TheaterName: theater.Name,
+		Movies:      movies,
+		Watched:     watched,
+	}, nil
 }
 
 func (a *App) renderBoard(w http.ResponseWriter, r *http.Request) {

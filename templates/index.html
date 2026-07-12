@@ -10,21 +10,17 @@
 <body>
   <main>
     <header class="topbar">
-      <h1>🍿 Movie Night</h1>
+      <h1>🍿 Movie Night <span class="muted">— {{.TheaterName}}</span></h1>
       <div>
-        {{if .LoggedIn}}
+        <a class="linkish" href="/theaters">switch theater</a>
         <span class="muted">hi, {{.Username}}</span>
         <form class="inline" method="post" action="/logout">
           <button type="submit" class="linkish">sign out</button>
         </form>
-        {{else}}
-        <a class="signin" href="/login">Sign in</a>
-        {{end}}
       </div>
     </header>
 
-    {{if .LoggedIn}}
-    <form class="add-form" hx-post="/movies" hx-target="#movie-board"
+    <form class="add-form" hx-post="/t/{{.TheaterID}}/movies" hx-target="#movie-board"
           hx-on::after-request="if (event.detail.successful && event.detail.elt === this) { this.reset(); document.getElementById('search-results').innerHTML = ''; }">
       <input type="text" name="title" id="title-input" placeholder="Search for a movie…"
              maxlength="200" required autocomplete="off"
@@ -34,9 +30,6 @@
     </form>
     <div id="search-results"></div>
     <p class="muted">Pick a search result (or just hit Add). Everyone gets one vote — click again to remove it, or vote elsewhere to move it.</p>
-    {{else}}
-    <p class="muted"><a href="/login">Sign in</a> to suggest a movie or cast your vote.</p>
-    {{end}}
 
     <div id="movie-board">
       {{template "movie-board" .}}
