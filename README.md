@@ -15,7 +15,7 @@ docker compose up --build
 Then open http://localhost:8080, create an account, and start adding movies.
 Typing in the suggest box searches [OMDb](https://www.omdbapi.com) by title so
 you can pick the exact movie (with year and poster). Search results are cached
-in Postgres for 7 days, so repeat searches don't spend API credits. Without an
+in Postgres forever, so a repeat search never spends API credits. Without an
 API key the app still works — you just add titles as typed.
 
 ## How it works

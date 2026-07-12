@@ -174,8 +174,7 @@ func (s *Store) ListWatched(ctx context.Context) ([]WatchedRow, error) {
 func (s *Store) GetCachedSearch(ctx context.Context, query string) ([]SearchResult, bool, error) {
 	var results []SearchResult
 	err := s.pool.QueryRow(ctx,
-		`SELECT results FROM search_cache
-		 WHERE query = $1 AND created_at > now() - interval '7 days'`,
+		`SELECT results FROM search_cache WHERE query = $1`,
 		query).Scan(&results)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, false, nil
