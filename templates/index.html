@@ -12,6 +12,7 @@
     <header class="topbar">
       <h1>🍿 Movie Night</h1>
       <div>
+        {{template "theme-toggle"}}
         {{if .LoggedIn}}
         <span class="muted">hi, {{.Username}}</span>
         <form class="inline" method="post" action="/logout">
