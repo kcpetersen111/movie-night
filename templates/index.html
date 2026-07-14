@@ -30,7 +30,7 @@
           hx-on::after-request="if (event.detail.successful && event.detail.elt === this) { this.reset(); document.getElementById('search-results').innerHTML = ''; }">
       <input type="text" name="title" id="title-input" placeholder="Search for a movie…"
              maxlength="200" required autocomplete="off"
-             hx-get="/search" hx-trigger="input changed delay:400ms"
+             hx-get="/t/{{.TheaterID}}/search" hx-trigger="input changed delay:400ms"
              hx-target="#search-results" hx-sync="this:replace">
       <button type="submit" class="primary">Add</button>
     </form>

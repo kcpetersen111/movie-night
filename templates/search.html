@@ -15,7 +15,7 @@
         <div class="muted">{{.Year}}</div>
       </div>
     </div>
-    <form hx-post="/movies" hx-target="#movie-board"
+    <form hx-post="/t/{{$.TheaterID}}/movies" hx-target="#movie-board"
           hx-on::after-request="document.getElementById('search-results').innerHTML = ''; document.getElementById('title-input').value = '';">
       <input type="hidden" name="title" value="{{.Title}}">
       <input type="hidden" name="year" value="{{.Year}}">

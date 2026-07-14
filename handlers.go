@@ -388,14 +388,16 @@ func (a *App) addMovie(w http.ResponseWriter, r *http.Request) {
 }
 
 type searchData struct {
-	Results []SearchResult
-	Message string
+	TheaterID int
+	Results   []SearchResult
+	Message   string
 }
 
 func (a *App) search(w http.ResponseWriter, r *http.Request) {
+	theaterID := currentTheater(r).ID
 	query := strings.TrimSpace(r.FormValue("title"))
 	if len(query) < 2 {
-		a.render(w, "search-results", searchData{})
+		a.render(w, "search-results", searchData{TheaterID: theaterID})
 		return
 	}
 
@@ -410,14 +412,15 @@ func (a *App) search(w http.ResponseWriter, r *http.Request) {
 	if !hit {
 		if a.omdb == nil {
 			a.render(w, "search-results", searchData{
-				Message: "Movie search is not configured — set OMDB_API_KEY in .env. You can still add the title as typed.",
+				TheaterID: theaterID,
+				Message:   "Movie search is not configured — set OMDB_API_KEY in .env. You can still add the title as typed.",
 			})
 			return
 		}
 		results, err = a.omdb.Search(r.Context(), query)
 		if err != nil {
 			log.Printf("omdb search %q: %v", query, err)
-			a.render(w, "search-results", searchData{Message: "Search failed — you can still add the title as typed."})
+			a.render(w, "search-results", searchData{TheaterID: theaterID, Message: "Search failed — you can still add the title as typed."})
 			return
 		}
 		if err := a.store.CacheSearch(r.Context(), key, results); err != nil {
@@ -428,7 +431,7 @@ func (a *App) search(w http.ResponseWriter, r *http.Request) {
 	if len(results) > 6 {
 		results = results[:6]
 	}
-	a.render(w, "search-results", searchData{Results: results})
+	a.render(w, "search-results", searchData{TheaterID: theaterID, Results: results})
 }
 
 func (a *App) vote(w http.ResponseWriter, r *http.Request) {
