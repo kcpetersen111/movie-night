@@ -184,6 +184,7 @@ type MovieRow struct {
 	Votes     int
 	VotedByMe bool
 	AddedAt   time.Time
+	CanDelete bool
 }
 
 type WatchedRow struct {
@@ -233,17 +234,22 @@ func (s *Store) AddMovie(ctx context.Context, theaterID int, title, year, poster
 	return err
 }
 
+// ListMovies returns the pending movies for a theater. CanDelete is true when
+// currentUserID either added the movie or created the theater — the only two
+// people allowed to remove it.
 func (s *Store) ListMovies(ctx context.Context, theaterID, currentUserID int) ([]MovieRow, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT m.id, m.title, m.year, m.poster, u.username,
 		        count(v.user_id) AS votes,
 		        coalesce(bool_or(v.user_id = $1), false) AS voted_by_me,
-		        m.created_at
+		        m.created_at,
+		        (m.added_by = $1 OR t.created_by = $1) AS can_delete
 		 FROM movies m
 		 JOIN users u ON u.id = m.added_by
+		 JOIN theaters t ON t.id = m.theater_id
 		 LEFT JOIN votes v ON v.movie_id = m.id AND v.theater_id = m.theater_id
 		 WHERE NOT m.watched AND m.theater_id = $2
-		 GROUP BY m.id, u.username
+		 GROUP BY m.id, u.username, t.created_by
 		 ORDER BY votes DESC, m.created_at ASC`, currentUserID, theaterID)
 	if err != nil {
 		return nil, err
@@ -253,7 +259,7 @@ func (s *Store) ListMovies(ctx context.Context, theaterID, currentUserID int) ([
 	var movies []MovieRow
 	for rows.Next() {
 		var m MovieRow
-		if err := rows.Scan(&m.ID, &m.Title, &m.Year, &m.Poster, &m.AddedBy, &m.Votes, &m.VotedByMe, &m.AddedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.Title, &m.Year, &m.Poster, &m.AddedBy, &m.Votes, &m.VotedByMe, &m.AddedAt, &m.CanDelete); err != nil {
 			return nil, err
 		}
 		movies = append(movies, m)
@@ -487,6 +493,20 @@ func (s *Store) ToggleVote(ctx context.Context, theaterID, userID, movieID int) 
 		}
 	}
 	return tx.Commit(ctx)
+}
+
+// DeleteMovie removes a pending movie, cascading to its votes. It only
+// deletes when the caller added the movie or created the theater (isOwner),
+// reporting back whether a row actually matched so the handler can tell
+// "not allowed" apart from other failures.
+func (s *Store) DeleteMovie(ctx context.Context, theaterID, movieID, userID int, isOwner bool) (bool, error) {
+	tag, err := s.pool.Exec(ctx,
+		`DELETE FROM movies WHERE id = $1 AND theater_id = $2 AND (added_by = $3 OR $4)`,
+		movieID, theaterID, userID, isOwner)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
 }
 
 // MarkWatched flags the movie and clears this theater's votes to start the

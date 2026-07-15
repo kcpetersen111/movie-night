@@ -387,6 +387,29 @@ func (a *App) addMovie(w http.ResponseWriter, r *http.Request) {
 	a.renderBoard(w, r)
 }
 
+// deleteMovie removes a pending movie. Only the person who added it, or the
+// theater's creator, may do so.
+func (a *App) deleteMovie(w http.ResponseWriter, r *http.Request) {
+	movieID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, "bad movie id", http.StatusBadRequest)
+		return
+	}
+	theater := currentTheater(r)
+	user := currentUser(r)
+	deleted, err := a.store.DeleteMovie(r.Context(), theater.ID, movieID, user.ID, user.ID == theater.CreatedBy)
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+	if !deleted {
+		http.Error(w, "you can only remove a movie you added, unless you're the theater owner", http.StatusForbidden)
+		return
+	}
+	a.hub.Broadcast()
+	a.renderBoard(w, r)
+}
+
 type searchData struct {
 	TheaterID int
 	Results   []SearchResult

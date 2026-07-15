@@ -26,6 +26,12 @@
                 hx-confirm="Mark “{{.Title}}” as watched? This clears everyone's votes for the next round.">
           Watched
         </button>
+        {{if .CanDelete}}
+        <button hx-post="/t/{{$.TheaterID}}/movies/{{.ID}}/delete" hx-target="#movie-board"
+                hx-confirm="Remove “{{.Title}}” from the queue?" class="danger">
+          Remove
+        </button>
+        {{end}}
       </div>
     </li>
     {{end}}
