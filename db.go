@@ -58,9 +58,9 @@ ALTER TABLE movies ADD COLUMN IF NOT EXISTS director TEXT NOT NULL DEFAULT '';
 ALTER TABLE movies ADD COLUMN IF NOT EXISTS plot TEXT NOT NULL DEFAULT '';
 ALTER TABLE movies ADD COLUMN IF NOT EXISTS imdb_rating TEXT NOT NULL DEFAULT '';
 
--- user_id is part of the primary key: each user has at most one active
--- vote per theater (see backfillTheaters, which upgrades the PK to
--- (user_id, theater_id) once theater_id is backfilled).
+-- The primary key is widened over time by backfillTheaters and
+-- allowMultipleVotes to (user_id, movie_id, theater_id), allowing a user
+-- to hold votes on multiple movies within a theater at once.
 CREATE TABLE IF NOT EXISTS votes (
 	user_id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
 	movie_id INT NOT NULL REFERENCES movies(id) ON DELETE CASCADE,
@@ -92,7 +92,42 @@ func migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	if _, err := pool.Exec(ctx, schema); err != nil {
 		return err
 	}
-	return backfillTheaters(ctx, pool)
+	if err := backfillTheaters(ctx, pool); err != nil {
+		return err
+	}
+	return allowMultipleVotes(ctx, pool)
+}
+
+// allowMultipleVotes widens the votes primary key from (user_id,
+// theater_id) to (user_id, movie_id, theater_id), so a user can hold a
+// vote on more than one movie per theater instead of a single vote that
+// moves between movies. It no-ops once the wider key is already in place.
+func allowMultipleVotes(ctx context.Context, pool *pgxpool.Pool) error {
+	var alreadyMigrated bool
+	err := pool.QueryRow(ctx,
+		`SELECT count(*) = 3 FROM information_schema.key_column_usage
+		 WHERE table_name = 'votes' AND constraint_name = 'votes_pkey'`).Scan(&alreadyMigrated)
+	if err != nil {
+		return err
+	}
+	if alreadyMigrated {
+		return nil
+	}
+
+	tx, err := pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `ALTER TABLE votes DROP CONSTRAINT votes_pkey`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `ALTER TABLE votes ADD CONSTRAINT votes_pkey PRIMARY KEY (user_id, movie_id, theater_id)`); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 // backfillTheaters is a one-time upgrade step for installs that predate
@@ -540,10 +575,9 @@ func (s *Store) CacheTitle(ctx context.Context, key string, result TitleSearchRe
 	return err
 }
 
-// ToggleVote removes the user's vote if it is already on this movie,
-// otherwise moves their single vote (within this theater) to it. The
-// primary key on votes (user_id, theater_id) guarantees one vote per user
-// per theater no matter what.
+// ToggleVote removes the user's vote on this movie if they already have
+// one, otherwise adds it. A user can hold votes on any number of movies
+// within a theater at once.
 func (s *Store) ToggleVote(ctx context.Context, theaterID, userID, movieID int) error {
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -560,7 +594,7 @@ func (s *Store) ToggleVote(ctx context.Context, theaterID, userID, movieID int) 
 		_, err = tx.Exec(ctx,
 			`INSERT INTO votes (user_id, movie_id, theater_id)
 			 SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM movies WHERE id = $2 AND theater_id = $3 AND NOT watched)
-			 ON CONFLICT (user_id, theater_id) DO UPDATE SET movie_id = EXCLUDED.movie_id, created_at = now()`,
+			 ON CONFLICT (user_id, movie_id, theater_id) DO NOTHING`,
 			userID, movieID, theaterID)
 		if err != nil {
 			return err

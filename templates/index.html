@@ -44,7 +44,7 @@
       <button type="submit" class="primary">Add</button>
     </form>
     <div id="search-results"></div>
-    <p class="muted">Pick a search result (or just hit Add). Everyone gets one vote — click again to remove it, or vote elsewhere to move it.</p>
+    <p class="muted">Pick a search result (or just hit Add). Vote for as many movies as you like — click again to remove your vote.</p>
     {{else}}
     <p class="muted">You're viewing this theater's queue.
       {{if .LoggedIn}}Join it to add movies and vote.{{else}}<a href="{{.LoginURL}}">Sign in</a> to add movies and vote.{{end}}
