@@ -247,6 +247,16 @@ func (s *Store) DeleteSession(ctx context.Context, token string) error {
 	return err
 }
 
+// MovieExists reports whether a movie with the given IMDb ID has already
+// been added to the theater (pending or watched).
+func (s *Store) MovieExists(ctx context.Context, theaterID int, imdbID string) (bool, error) {
+	var exists bool
+	err := s.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM movies WHERE theater_id = $1 AND imdb_id = $2)`,
+		theaterID, imdbID).Scan(&exists)
+	return exists, err
+}
+
 func (s *Store) AddMovie(ctx context.Context, theaterID int, title, imdbID, year, poster string, details TitleSearchResult, userID int) error {
 	_, err := s.pool.Exec(ctx,
 		`INSERT INTO movies (theater_id, title, imdb_id, year, poster, rated, runtime, genre, director, plot, imdb_rating, added_by)

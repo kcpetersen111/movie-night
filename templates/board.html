@@ -1,6 +1,7 @@
 {{define "movie-board"}}
 <section>
   <h2>Up for a vote</h2>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
   {{if .Movies}}
   <ul class="movies">
     {{range .Movies}}
