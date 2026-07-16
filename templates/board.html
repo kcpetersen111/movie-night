@@ -1,6 +1,7 @@
 {{define "movie-board"}}
 <section>
   <h2>Up for a vote</h2>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
   {{if .Movies}}
   <ul class="movies">
     {{range .Movies}}
@@ -17,12 +18,22 @@
         </div>
       </button>
       <div class="actions">
-        <span class="count">{{.Votes}} vote{{if ne .Votes 1}}s{{end}}</span>
         {{if $.IsMember}}
-        <button hx-post="/t/{{$.TheaterID}}/vote/{{.ID}}" hx-target="#movie-board"
-                class="{{if .VotedByMe}}voted{{end}}">
-          {{if .VotedByMe}}✓ Voted{{else}}Vote{{end}}
-        </button>
+        <div class="vote-group">
+          <button hx-post="/t/{{$.TheaterID}}/vote/{{.ID}}" hx-target="#movie-board"
+                  class="upvote {{if eq .MyVote 1}}voted{{end}}" aria-label="Upvote">
+            ▲
+          </button>
+          <span class="count">{{.Votes}}</span>
+          <button hx-post="/t/{{$.TheaterID}}/downvote/{{.ID}}" hx-target="#movie-board"
+                  class="downvote {{if eq .MyVote -1}}voted{{end}}" aria-label="Downvote">
+            ▼
+          </button>
+        </div>
+        {{else}}
+        <span class="count">{{.Votes}} vote{{if ne .Votes 1}}s{{end}}</span>
+        {{end}}
+        {{if $.IsMember}}
         <button hx-post="/t/{{$.TheaterID}}/watched/{{.ID}}" hx-target="#movie-board"
                 hx-confirm="Mark “{{.Title}}” as watched? This clears everyone's votes for the next round.">
           Watched

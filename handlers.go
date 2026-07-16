@@ -51,6 +51,7 @@ type pageData struct {
 	LoginURL    string
 	Movies      []MovieRow
 	Watched     []WatchedRow
+	Error       string
 }
 
 type overviewData struct {
@@ -428,6 +429,17 @@ func (a *App) addMovie(w http.ResponseWriter, r *http.Request) {
 	year := strings.TrimSpace(r.FormValue("year"))
 	poster := strings.TrimSpace(r.FormValue("poster"))
 	if title != "" && len(title) <= 200 && len(imdbID) <= 20 && len(year) <= 20 && len(poster) <= 500 {
+		if imdbID != "" {
+			exists, err := a.store.MovieExists(r.Context(), currentTheater(r).ID, imdbID)
+			if err != nil {
+				a.serverError(w, err)
+				return
+			}
+			if exists {
+				a.renderBoardError(w, r, "That movie has already been added.")
+				return
+			}
+		}
 		details := a.lookupTitleDetails(r.Context(), imdbID, title)
 		if err := a.store.AddMovie(r.Context(), currentTheater(r).ID, title, imdbID, year, poster, details, currentUser(r).ID); err != nil {
 			a.serverError(w, err)
@@ -547,13 +559,16 @@ func (a *App) search(w http.ResponseWriter, r *http.Request) {
 	a.render(w, "search-results", searchData{TheaterID: theaterID, Results: results})
 }
 
-func (a *App) vote(w http.ResponseWriter, r *http.Request) {
+func (a *App) upvote(w http.ResponseWriter, r *http.Request)   { a.vote(w, r, 1) }
+func (a *App) downvote(w http.ResponseWriter, r *http.Request) { a.vote(w, r, -1) }
+
+func (a *App) vote(w http.ResponseWriter, r *http.Request, value int) {
 	movieID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		http.Error(w, "bad movie id", http.StatusBadRequest)
 		return
 	}
-	if err := a.store.ToggleVote(r.Context(), currentTheater(r).ID, currentUser(r).ID, movieID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err := a.store.SetVote(r.Context(), currentTheater(r).ID, currentUser(r).ID, movieID, value); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		a.serverError(w, err)
 		return
 	}
@@ -620,6 +635,18 @@ func (a *App) renderBoard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, err)
 		return
 	}
+	a.render(w, "movie-board", data)
+}
+
+// renderBoardError re-renders the board with a message shown to the user,
+// without performing whatever action triggered it (e.g. a duplicate movie).
+func (a *App) renderBoardError(w http.ResponseWriter, r *http.Request, msg string) {
+	data, err := a.boardData(r)
+	if err != nil {
+		a.serverError(w, err)
+		return
+	}
+	data.Error = msg
 	a.render(w, "movie-board", data)
 }
 

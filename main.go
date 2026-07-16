@@ -78,7 +78,8 @@ func main() {
 	mux.Handle("POST /t/{theaterID}/delete", app.requireUser(app.requireTheaterMember(app.deleteTheater)))
 	mux.Handle("POST /t/{theaterID}/members/{userID}/remove", app.requireUser(app.requireTheaterMember(app.removeMember)))
 	mux.Handle("POST /t/{theaterID}/movies", app.requireUser(app.requireTheaterMember(app.addMovie)))
-	mux.Handle("POST /t/{theaterID}/vote/{id}", app.requireUser(app.requireTheaterMember(app.vote)))
+	mux.Handle("POST /t/{theaterID}/vote/{id}", app.requireUser(app.requireTheaterMember(app.upvote)))
+	mux.Handle("POST /t/{theaterID}/downvote/{id}", app.requireUser(app.requireTheaterMember(app.downvote)))
 	mux.Handle("POST /t/{theaterID}/movies/{id}/delete", app.requireUser(app.requireTheaterMember(app.deleteMovie)))
 	mux.Handle("POST /t/{theaterID}/watched/{id}", app.requireUser(app.requireTheaterMember(app.markWatched)))
 

@@ -197,6 +197,13 @@
     font-size: 0.85rem; font-weight: 500; font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
+  .vote-group { display: flex; align-items: center; gap: 0.4rem; }
+  .vote-group .count { background: none; color: var(--base900); padding: 0 0.15rem; }
+  button.upvote, button.downvote {
+    padding: 0.3rem 0.55rem; font-size: 0.85rem; line-height: 1;
+  }
+  button.upvote.voted { background: var(--prim600); border-color: var(--prim600); color: #fff; }
+  button.downvote.voted { background: var(--err600); border-color: var(--err600); color: #fff; }
 
   ul.watched { list-style: none; padding: 0; margin: 0; }
   ul.watched li {

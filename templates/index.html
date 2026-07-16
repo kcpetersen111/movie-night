@@ -44,7 +44,7 @@
       <button type="submit" class="primary">Add</button>
     </form>
     <div id="search-results"></div>
-    <p class="muted">Pick a search result (or just hit Add). Everyone gets one vote — click again to remove it, or vote elsewhere to move it.</p>
+    <p class="muted">Pick a search result (or just hit Add). Vote for as many movies as you like — click again to remove your vote.</p>
     {{else}}
     <p class="muted">You're viewing this theater's queue.
       {{if .LoggedIn}}Join it to add movies and vote.{{else}}<a href="{{.LoginURL}}">Sign in</a> to add movies and vote.{{end}}
@@ -56,6 +56,25 @@
     </div>
   </main>
   <script>
+    (function () {
+      // #movie-board gets fully re-rendered on every vote/add/watch and on
+      // every websocket "board-changed" broadcast, which would otherwise
+      // silently close whatever movie's detail dialog the user has open.
+      // Remember it across the swap and reopen it if it still exists.
+      let openMovieModalID = null;
+      const board = document.getElementById("movie-board");
+      board.addEventListener("htmx:beforeSwap", () => {
+        const open = board.querySelector("dialog[open]");
+        openMovieModalID = open ? open.id : null;
+      });
+      board.addEventListener("htmx:afterSwap", () => {
+        if (!openMovieModalID) return;
+        const dialog = document.getElementById(openMovieModalID);
+        if (dialog) dialog.showModal();
+        openMovieModalID = null;
+      });
+    })();
+
     (function connect() {
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
       const ws = new WebSocket(proto + "//" + location.host + "/ws");
